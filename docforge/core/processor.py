@@ -10,6 +10,7 @@ from .exceptions import DocForgeError
 from ..pdf.ocr import PDFOCRProcessor
 from ..pdf.optimizer import PDFOptimizer
 from ..utils.logger import setup_logger
+from ..pdf.pdf_merger import PDFMerger
 
 class DocumentProcessor:
     """Main DocForge processor that coordinates all operations."""
@@ -21,6 +22,7 @@ class DocumentProcessor:
         # Initialize operation modules
         self.ocr_processor = PDFOCRProcessor(verbose)
         self.optimizer = PDFOptimizer(verbose)
+        self.merger = PDFMerger(verbose)
         
         if verbose:
             print("🔨 DocForge DocumentProcessor initialized")
@@ -44,3 +46,19 @@ class DocumentProcessor:
     def batch_optimize_pdfs(self, input_folder: str, output_folder: str, **kwargs) -> Dict[str, Any]:
         """Batch optimize PDF files."""
         return self.optimizer.batch_optimize_pdfs(input_folder, output_folder, **kwargs)
+
+    # Add these merger methods
+    def merge_pdfs(self, *args, **kwargs):
+        return self.merger.merge_pdfs(*args, **kwargs)
+
+    def merge_folder(self, *args, **kwargs):
+        return self.merger.merge_folder(*args, **kwargs)
+
+    def merge_specific_files(self, *args, **kwargs):
+        return self.merger.merge_specific_files(*args, **kwargs)
+
+    def choose_merge_method(self, *args, **kwargs):
+        return self.merger.choose_merge_method(*args, **kwargs)
+
+    def analyze_merge_candidates(self, *args, **kwargs):
+        return self.merger.analyze_merge_candidates(*args, **kwargs)

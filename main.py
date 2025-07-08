@@ -76,11 +76,20 @@ Examples:
   # Optimize with aggressive compression
   python main.py optimize -i input.pdf -o output.pdf --type aggressive
 
+  # Merge PDFs from folder
+  python main.py merge -i ./folder -o merged.pdf --page-numbers
+
+  # Merge specific files
+  python main.py merge -i "file1.pdf,file2.pdf" -o merged.pdf --preserve-signatures
+
   # Batch optimize scanned PDFs
   python main.py batch-optimize -i ./input -o ./output --type scanned
 
   # Advanced interactive optimization
   python main.py advanced-optimize -i input.pdf -o output.pdf
+
+  # Advanced interactive merge
+  python main.py advanced-merge -i ./folder -o merged.pdf
 
   # Analyze PDF for OCR
   python main.py analyze -i input.pdf --type ocr
@@ -90,6 +99,11 @@ Optimization Types:
 
 OCR Layout Modes:
   standard, precise, text_only
+
+Merge Options:
+  --page-numbers (add page numbers)
+  --no-page-numbers (merge without page numbers)
+  --preserve-signatures (use signature-preserving method)
         """
     )
 

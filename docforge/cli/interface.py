@@ -40,6 +40,31 @@ class CLIInterface:
         optimize_parser.add_argument('--dpi', type=int, default=150, help='Target DPI (default: 150)')
         optimize_parser.add_argument('--quality', type=int, default=70, help='JPEG quality 1-100 (default: 70)')
 
+        # Merge command - NEW
+        merge_parser = subparsers.add_parser('merge', help='Merge PDF files')
+        merge_parser.add_argument('-i', '--input', required=True,
+                                  help='Input folder or comma-separated file list')
+        merge_parser.add_argument('-o', '--output', required=True, help='Output merged PDF file')
+        merge_parser.add_argument('--page-numbers', action='store_true', default=True,
+                                  help='Add page numbers (default: True)')
+        merge_parser.add_argument('--no-page-numbers', action='store_true',
+                                  help='Do not add page numbers')
+        merge_parser.add_argument('--preserve-signatures', action='store_true', default=True,
+                                  help='Use signature-preserving merge (default: True)')
+        merge_parser.add_argument('--font-size', type=int, default=12,
+                                  help='Page number font size (default: 12)')
+
+        # Merge folder command - NEW
+        merge_folder_parser = subparsers.add_parser('merge-folder', help='Merge all PDFs in a folder')
+        merge_folder_parser.add_argument('-i', '--input', required=True, help='Input folder')
+        merge_folder_parser.add_argument('-o', '--output', required=True, help='Output merged PDF file')
+        merge_folder_parser.add_argument('--page-numbers', action='store_true', default=True,
+                                         help='Add page numbers (default: True)')
+        merge_folder_parser.add_argument('--no-page-numbers', action='store_true',
+                                         help='Do not add page numbers')
+        merge_folder_parser.add_argument('--preserve-signatures', action='store_true', default=True,
+                                         help='Use signature-preserving merge (default: True)')
+
         # Batch OCR command - Enhanced
         batch_ocr_parser = subparsers.add_parser('batch-ocr', help='Batch OCR PDFs')
         batch_ocr_parser.add_argument('-i', '--input', required=True, help='Input folder')
@@ -67,10 +92,16 @@ class CLIInterface:
         advanced_opt_parser.add_argument('-i', '--input', required=True, help='Input PDF file')
         advanced_opt_parser.add_argument('-o', '--output', required=True, help='Output PDF file')
 
+        # Advanced merge command - NEW
+        advanced_merge_parser = subparsers.add_parser('advanced-merge', help='Advanced PDF merging with full options')
+        advanced_merge_parser.add_argument('-i', '--input', required=True,
+                                           help='Input folder or comma-separated file list')
+        advanced_merge_parser.add_argument('-o', '--output', required=True, help='Output merged PDF file')
+
         # Analysis command
-        analyze_parser = subparsers.add_parser('analyze', help='Analyze PDF for optimization/OCR recommendations')
-        analyze_parser.add_argument('-i', '--input', required=True, help='Input PDF file')
-        analyze_parser.add_argument('--type', choices=['ocr', 'optimization'], default='ocr',
+        analyze_parser = subparsers.add_parser('analyze', help='Analyze PDF for optimization/OCR/merge recommendations')
+        analyze_parser.add_argument('-i', '--input', required=True, help='Input PDF file or folder')
+        analyze_parser.add_argument('--type', choices=['ocr', 'optimization', 'merge'], default='ocr',
                                     help='Analysis type (default: ocr)')
 
     def execute_command(self, args):
@@ -98,8 +129,42 @@ class CLIInterface:
                 print(f"📏 Size: {result['original_size_mb']:.2f} MB → {result['final_size_mb']:.2f} MB")
                 print(f"🔧 Method: {result['optimization_type']}")
 
+            elif args.command == 'merge':
+                # Determine if input is folder or file list
+                if ',' in args.input:
+                    input_files = [f.strip() for f in args.input.split(',')]
+                else:
+                    input_files = args.input
+
+                add_page_numbers = args.page_numbers and not args.no_page_numbers
+
+                result = self.processor.merge_pdfs(
+                    input_files, args.output,
+                    add_page_numbers=add_page_numbers,
+                    preserve_signatures=args.preserve_signatures,
+                    font_size=args.font_size
+                )
+                print(f"✅ Merged: {result['files_merged']} files")
+                print(f"📏 Size: {result['total_original_size_mb']:.2f} MB → {result['final_size_mb']:.2f} MB")
+                print(f"📄 Page numbers: {'Yes' if result['add_page_numbers'] else 'No'}")
+
+            elif args.command == 'merge-folder':
+                add_page_numbers = args.page_numbers and not args.no_page_numbers
+
+                result = self.processor.merge_folder(
+                    args.input, args.output,
+                    add_page_numbers=add_page_numbers,
+                    preserve_signatures=args.preserve_signatures
+                )
+                print(f"✅ Merged folder: {result['files_merged']} files")
+                print(f"📏 Size: {result['total_original_size_mb']:.2f} MB → {result['final_size_mb']:.2f} MB")
+                print(f"📄 Page numbers: {'Yes' if result['add_page_numbers'] else 'No'}")
+
             elif args.command == 'advanced-optimize':
                 self._interactive_advanced_optimize()
+
+            elif args.command == 'advanced-merge':
+                self._interactive_advanced_merge()
 
             elif args.command == 'batch-ocr':
                 result = self.processor.batch_ocr_pdfs(
@@ -132,10 +197,25 @@ class CLIInterface:
             elif args.command == 'analyze':
                 if args.type == 'ocr':
                     self.processor.analyze_pdf_for_ocr(args.input)
+                elif args.type == 'merge':
+                    self.processor.analyze_merge_candidates(args.input)
                 else:
-                    # Could add PDF optimization analysis here
-                    print(f"📊 Analyzing {args.input} for optimization...")
-                    print("💡 Analysis complete - use 'optimize' command with appropriate settings")
+                    # Basic optimization analysis
+                    from pathlib import Path
+                    file_path = Path(args.input)
+                    if file_path.exists():
+                        size_mb = file_path.stat().st_size / (1024 * 1024)
+                        print(f"📊 PDF Analysis: {file_path.name}")
+                        print(f"📏 File size: {size_mb:.2f} MB")
+
+                        if size_mb > 10:
+                            print("💡 Recommendation: File is large, try aggressive optimization")
+                        elif size_mb > 5:
+                            print("💡 Recommendation: Try standard optimization")
+                        else:
+                            print("💡 Recommendation: File already small, optimization may have minimal effect")
+                    else:
+                        print(f"❌ File not found: {args.input}")
 
         except Exception as e:
             print(f"❌ Error: {str(e)}")
@@ -153,12 +233,15 @@ class CLIInterface:
             print("3. Simple PDF Optimization (standard/aggressive)")
             print("4. Advanced PDF Optimization (6+ methods)")
             print("5. Interactive PDF Optimization (full menu)")
-            print("6. Batch OCR Processing")
-            print("7. Batch PDF Optimization")
-            print("8. Analyze PDF")
-            print("9. Exit")
+            print("6. Simple PDF Merge")
+            print("7. Advanced PDF Merge (all options)")
+            print("8. Interactive PDF Merge (full menu)")
+            print("9. Batch OCR Processing")
+            print("10. Batch PDF Optimization")
+            print("11. Analyze PDF")
+            print("12. Exit")
 
-            choice = input("\nSelect operation (1-9): ").strip()
+            choice = input("\nSelect operation (1-12): ").strip()
 
             if choice == '1':
                 self._interactive_ocr()
@@ -171,12 +254,18 @@ class CLIInterface:
             elif choice == '5':
                 self._interactive_full_optimize()
             elif choice == '6':
-                self._interactive_batch_ocr()
+                self._interactive_merge()
             elif choice == '7':
-                self._interactive_batch_optimize()
+                self._interactive_advanced_merge()
             elif choice == '8':
-                self._interactive_analyze()
+                self._interactive_full_merge()
             elif choice == '9':
+                self._interactive_batch_ocr()
+            elif choice == '10':
+                self._interactive_batch_optimize()
+            elif choice == '11':
+                self._interactive_analyze()
+            elif choice == '12':
                 print("🔨 Thanks for using DocForge!")
                 break
             else:
@@ -337,6 +426,126 @@ class CLIInterface:
         except Exception as e:
             print(f"❌ Error: {str(e)}")
 
+    def _interactive_merge(self):
+        """Interactive merge - Simple version."""
+        print("\n--- PDF Merge (Simple) ---")
+        input_source = input("Input (folder path or file1.pdf,file2.pdf): ")
+        output_file = input("Output merged PDF file: ")
+
+        # Determine if it's a folder or file list
+        if ',' in input_source:
+            input_files = [f.strip() for f in input_source.split(',')]
+        else:
+            input_files = input_source
+
+        add_numbers = input("Add page numbers? (y/n) [y]: ").strip().lower()
+        add_page_numbers = add_numbers != 'n'
+
+        try:
+            result = self.processor.merge_pdfs(input_files, output_file, add_page_numbers=add_page_numbers)
+            print(f"✅ Merged: {result['files_merged']} files")
+            print(f"📏 Size: {result['total_original_size_mb']:.2f} MB → {result['final_size_mb']:.2f} MB")
+            print(f"📄 Page numbers: {'Yes' if result['add_page_numbers'] else 'No'}")
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+
+    def _interactive_advanced_merge(self):
+        """Interactive merge - Advanced version with all options."""
+        print("\n--- PDF Merge (Advanced) ---")
+
+        print("📄 Choose merge type:")
+        print("1. Merge folder (alphabetical order)")
+        print("2. Merge specific files (custom order)")
+        print("3. Standard merge")
+        print("4. Signature-preserving merge")
+
+        merge_choice = input("Choose type (1-4): ").strip()
+
+        if merge_choice == "1":
+            folder_path = input("📁 Input folder: ")
+            output_file = input("📁 Output PDF file: ")
+
+            add_numbers = input("Add page numbers? (y/n) [y]: ").strip().lower()
+            add_page_numbers = add_numbers != 'n'
+
+            preserve_sigs = input("Preserve signatures? (y/n) [y]: ").strip().lower()
+            preserve_signatures = preserve_sigs != 'n'
+
+            try:
+                result = self.processor.merge_folder(folder_path, output_file,
+                                                     add_page_numbers=add_page_numbers,
+                                                     preserve_signatures=preserve_signatures)
+                print(f"✅ Merged folder: {result['files_merged']} files")
+                print(f"📏 Size: {result['total_original_size_mb']:.2f} MB → {result['final_size_mb']:.2f} MB")
+            except Exception as e:
+                print(f"❌ Error: {str(e)}")
+
+        elif merge_choice == "2":
+            print("Enter file paths (one per line, empty line to finish):")
+            file_list = []
+            while True:
+                file_path = input(f"File {len(file_list) + 1}: ").strip()
+                if not file_path:
+                    break
+                file_list.append(file_path)
+
+            if not file_list:
+                print("❌ No files specified")
+                return
+
+            output_file = input("📁 Output PDF file: ")
+
+            add_numbers = input("Add page numbers? (y/n) [y]: ").strip().lower()
+            add_page_numbers = add_numbers != 'n'
+
+            preserve_sigs = input("Preserve signatures? (y/n) [y]: ").strip().lower()
+            preserve_signatures = preserve_sigs != 'n'
+
+            try:
+                result = self.processor.merge_specific_files(file_list, output_file,
+                                                             add_page_numbers=add_page_numbers,
+                                                             preserve_signatures=preserve_signatures)
+                print(f"✅ Merged files: {result['files_merged']} files")
+                print(f"📏 Size: {result['total_original_size_mb']:.2f} MB → {result['final_size_mb']:.2f} MB")
+            except Exception as e:
+                print(f"❌ Error: {str(e)}")
+
+        else:
+            # Standard or signature-preserving merge
+            input_source = input("Input (folder path or file1.pdf,file2.pdf): ")
+            output_file = input("📁 Output PDF file: ")
+
+            if ',' in input_source:
+                input_files = [f.strip() for f in input_source.split(',')]
+            else:
+                input_files = input_source
+
+            add_numbers = input("Add page numbers? (y/n) [y]: ").strip().lower()
+            add_page_numbers = add_numbers != 'n'
+
+            preserve_signatures = merge_choice == "4"
+
+            try:
+                result = self.processor.merge_pdfs(input_files, output_file,
+                                                   add_page_numbers=add_page_numbers,
+                                                   preserve_signatures=preserve_signatures)
+                print(f"✅ Merged: {result['files_merged']} files")
+                print(f"📏 Size: {result['total_original_size_mb']:.2f} MB → {result['final_size_mb']:.2f} MB")
+                print(f"🔧 Method: {'Signature-preserving' if preserve_signatures else 'Standard'}")
+            except Exception as e:
+                print(f"❌ Error: {str(e)}")
+
+    def _interactive_full_merge(self):
+        """Interactive merge - Full menu system."""
+        print("\n--- PDF Merge (Interactive Menu) ---")
+        try:
+            # This would call the full interactive system from the processor
+            result = self.processor.choose_merge_method()
+            if result:
+                print(f"✅ Merge completed via interactive menu!")
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+
     def _interactive_batch_ocr(self):
         """Interactive batch OCR."""
         print("\n--- Batch OCR ---")
@@ -401,13 +610,14 @@ class CLIInterface:
     def _interactive_analyze(self):
         """Interactive PDF analysis."""
         print("\n--- PDF Analysis ---")
-        input_file = input("PDF file to analyze: ")
+        input_file = input("PDF file or folder to analyze: ")
 
         print("\nAnalysis type:")
         print("1. OCR analysis (check if OCR is needed)")
         print("2. Optimization analysis (size and structure)")
+        print("3. Merge analysis (folder of PDFs for merging)")
 
-        choice = input("Choose analysis type (1-2): ").strip()
+        choice = input("Choose analysis type (1-3): ").strip()
 
         try:
             if choice == "1":
@@ -429,6 +639,8 @@ class CLIInterface:
                         print("💡 Recommendation: File already small, optimization may have minimal effect")
                 else:
                     print(f"❌ File not found: {input_file}")
+            elif choice == "3":
+                self.processor.analyze_merge_candidates(input_file)
             else:
                 print("❌ Invalid choice")
 
