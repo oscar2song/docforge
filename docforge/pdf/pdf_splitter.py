@@ -16,7 +16,7 @@ except ImportError:
     print("PDF dependencies not available. Install with: pip install PyPDF2")
 
 from ..core.base import BaseProcessor
-from ..core.exceptions import DocForgeError
+from ..core.exceptions import DocForgeException
 
 
 def get_file_size_mb(file_path):
@@ -57,12 +57,12 @@ class PDFSplitter(BaseProcessor):
         """
 
         if not self.has_dependencies:
-            raise DocForgeError("PDF dependencies not installed. Run: pip install PyPDF2")
+            raise DocForgeException("PDF dependencies not installed. Run: pip install PyPDF2")
 
         try:
             # Validate input
             if not os.path.exists(input_path):
-                raise DocForgeError(f"Input file not found: {input_path}")
+                raise DocForgeException(f"Input file not found: {input_path}")
 
             # Ensure output directory exists
             os.makedirs(output_dir, exist_ok=True)
@@ -85,7 +85,7 @@ class PDFSplitter(BaseProcessor):
             elif split_type == "bookmarks":
                 output_files = self._split_by_bookmarks(input_path, output_dir)
             else:
-                raise DocForgeError(f"Unknown split type: {split_type}")
+                raise DocForgeException(f"Unknown split type: {split_type}")
 
             # Calculate total output size
             total_output_size = sum(get_file_size_mb(f) for f in output_files if os.path.exists(f))
@@ -105,7 +105,7 @@ class PDFSplitter(BaseProcessor):
             }
 
         except Exception as e:
-            raise DocForgeError(f"Failed to split PDF: {str(e)}")
+            raise DocForgeException(f"Failed to split PDF: {str(e)}")
 
     def split_pdf_by_pages(self, input_path: str, output_dir: str, page_ranges: str, **kwargs) -> Dict[str, Any]:
         """
@@ -162,13 +162,13 @@ class PDFSplitter(BaseProcessor):
             Dict[str, Any]: Batch processing results
         """
         if not self.has_dependencies:
-            raise DocForgeError("PDF dependencies not installed. Run: pip install PyPDF2")
+            raise DocForgeException("PDF dependencies not installed. Run: pip install PyPDF2")
 
         try:
             # Find PDF files
             pdf_files = glob.glob(os.path.join(input_folder, "*.pdf"))
             if not pdf_files:
-                raise DocForgeError(f"No PDF files found in {input_folder}")
+                raise DocForgeException(f"No PDF files found in {input_folder}")
 
             # Ensure output directory exists
             os.makedirs(output_folder, exist_ok=True)
@@ -230,7 +230,7 @@ class PDFSplitter(BaseProcessor):
             }
 
         except Exception as e:
-            raise DocForgeError(f"Failed to batch split PDFs: {str(e)}")
+            raise DocForgeException(f"Failed to batch split PDFs: {str(e)}")
 
     def _split_by_page_ranges(self, input_path: str, output_dir: str, page_ranges: str) -> List[str]:
         """Split PDF by specific page ranges."""
@@ -248,7 +248,7 @@ class PDFSplitter(BaseProcessor):
 
         for i, (start, end) in enumerate(ranges):
             if start < 1 or end > total_pages:
-                raise DocForgeError(f"Page range {start}-{end} is invalid for {total_pages} pages")
+                raise DocForgeException(f"Page range {start}-{end} is invalid for {total_pages} pages")
 
             output_filename = f"{base_name}_pages_{start}-{end}.pdf"
             output_path = os.path.join(output_dir, output_filename)
@@ -328,13 +328,13 @@ class PDFSplitter(BaseProcessor):
         base_name = os.path.splitext(os.path.basename(input_path))[0]
 
         if not reader.outline:
-            raise DocForgeError("PDF has no bookmarks to split by")
+            raise DocForgeException("PDF has no bookmarks to split by")
 
         # Extract bookmark page numbers
         bookmarks = self._extract_bookmark_pages(reader)
 
         if not bookmarks:
-            raise DocForgeError("Could not extract valid bookmark page numbers")
+            raise DocForgeException("Could not extract valid bookmark page numbers")
 
         if self.verbose:
             print(f"📑 Found {len(bookmarks)} bookmarks:")

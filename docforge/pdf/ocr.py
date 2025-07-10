@@ -31,7 +31,7 @@ except ImportError as e:
     print("And install Tesseract OCR from: https://github.com/tesseract-ocr/tesseract")
 
 from ..core.base import BaseProcessor
-from ..core.exceptions import OCRProcessingError
+from ..core.exceptions import OCRError
 
 
 def get_file_size_mb(file_path):
@@ -492,18 +492,18 @@ class PDFOCRProcessor(BaseProcessor):
         """
 
         if not self.has_dependencies:
-            raise OCRProcessingError(
+            raise OCRError(
                 "OCR dependencies not installed. Run: pip install pytesseract pdf2image reportlab PyPDF2")
 
         if not self.check_tesseract():
-            raise OCRProcessingError(
+            raise OCRError(
                 "Tesseract OCR is not installed or not in PATH. Install from: https://github.com/tesseract-ocr/tesseract")
 
         input_path = Path(input_path)
         output_path = Path(output_path)
 
         if not input_path.exists():
-            raise OCRProcessingError(f"Input file not found: {input_path}")
+            raise OCRError(f"Input file not found: {input_path}")
 
         # Create output directory if it doesn't exist
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -618,7 +618,7 @@ class PDFOCRProcessor(BaseProcessor):
             }
 
         except Exception as e:
-            raise OCRProcessingError(f"Failed to process PDF OCR: {str(e)}")
+            raise OCRError(f"Failed to process PDF OCR: {str(e)}")
 
     def batch_ocr_pdfs(self, input_folder: str, output_folder: str, **kwargs) -> Dict[str, Any]:
         """Batch OCR processing with comprehensive options."""

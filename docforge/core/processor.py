@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 
-from .exceptions import DocForgeError
+from .exceptions import DocForgeException
 from ..pdf.ocr import PDFOCRProcessor
 from ..pdf.optimizer import PDFOptimizer
 from ..utils.logger import setup_logger

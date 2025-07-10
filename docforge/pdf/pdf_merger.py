@@ -17,7 +17,7 @@ except ImportError:
     print("PDF dependencies not available. Install with: pip install PyMuPDF")
 
 from ..core.base import BaseProcessor
-from ..core.exceptions import DocForgeError
+from ..core.exceptions import DocForgeException
 
 
 def get_file_size_mb(file_path):
@@ -60,7 +60,7 @@ class PDFMerger(BaseProcessor):
         """
 
         if not self.has_dependencies:
-            raise DocForgeError("PDF dependencies not installed. Run: pip install PyMuPDF")
+            raise DocForgeException("PDF dependencies not installed. Run: pip install PyMuPDF")
 
         try:
             # Get list of PDF files
@@ -117,7 +117,7 @@ class PDFMerger(BaseProcessor):
             }
 
         except Exception as e:
-            raise DocForgeError(f"Failed to merge PDFs: {str(e)}")
+            raise DocForgeException(f"Failed to merge PDFs: {str(e)}")
 
     def _merge_standard(self, pdf_files: List[str], output_path: str, add_page_numbers: bool,
                         font_size: int, right_margin: int, bottom_margin: int):
@@ -271,7 +271,7 @@ class PDFMerger(BaseProcessor):
         pdf_files = glob.glob(os.path.join(folder_path, pattern))
 
         if not pdf_files:
-            raise DocForgeError(f"No PDF files found in {folder_path}")
+            raise DocForgeException(f"No PDF files found in {folder_path}")
 
         pdf_files.sort()  # Sort alphabetically
         return self.merge_pdfs(pdf_files, output_path, add_page_numbers, **kwargs)
