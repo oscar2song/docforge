@@ -65,6 +65,27 @@ class CLIInterface:
         merge_folder_parser.add_argument('--preserve-signatures', action='store_true', default=True,
                                          help='Use signature-preserving merge (default: True)')
 
+        # PDF to Word command - NEW
+        pdf_to_word_parser = subparsers.add_parser('pdf-to-word', help='Convert PDF to Word document')
+        pdf_to_word_parser.add_argument('-i', '--input', required=True, help='Input PDF file')
+        pdf_to_word_parser.add_argument('-o', '--output', required=True, help='Output Word file (.docx)')
+        pdf_to_word_parser.add_argument('--method', choices=['simple', 'ocr'], default='simple',
+                                        help='Conversion method (default: simple)')
+        pdf_to_word_parser.add_argument('--language', default='eng',
+                                        help='OCR language if using OCR method (default: eng)')
+
+        # Split PDF command - NEW
+        split_pdf_parser = subparsers.add_parser('split-pdf', help='Split PDF into multiple files')
+        split_pdf_parser.add_argument('-i', '--input', required=True, help='Input PDF file')
+        split_pdf_parser.add_argument('-o', '--output', required=True, help='Output directory')
+        split_pdf_parser.add_argument('--pages', help='Page ranges to extract (e.g., "1-5,10-15" or "all")')
+        split_pdf_parser.add_argument('--split-type', choices=['pages', 'size', 'bookmarks'], default='pages',
+                                      help='Split type: by pages, file size, or bookmarks (default: pages)')
+        split_pdf_parser.add_argument('--pages-per-file', type=int, default=1,
+                                      help='Pages per output file when using pages split type (default: 1)')
+        split_pdf_parser.add_argument('--max-size-mb', type=float, default=10.0,
+                                      help='Maximum file size in MB when using size split type (default: 10.0)')
+
         # Batch OCR command - Enhanced
         batch_ocr_parser = subparsers.add_parser('batch-ocr', help='Batch OCR PDFs')
         batch_ocr_parser.add_argument('-i', '--input', required=True, help='Input folder')
@@ -86,6 +107,16 @@ class CLIInterface:
         batch_opt_parser.add_argument('--max-size', type=int, default=100,
                                       help='Max file size MB to process (default: 100)')
 
+        # Batch PDF to Word command - NEW
+        batch_pdf_to_word_parser = subparsers.add_parser('batch-pdf-to-word',
+                                                         help='Batch convert PDFs to Word documents')
+        batch_pdf_to_word_parser.add_argument('-i', '--input', required=True, help='Input folder')
+        batch_pdf_to_word_parser.add_argument('-o', '--output', required=True, help='Output folder')
+        batch_pdf_to_word_parser.add_argument('--method', choices=['simple', 'ocr'], default='simple',
+                                              help='Conversion method (default: simple)')
+        batch_pdf_to_word_parser.add_argument('--language', default='eng',
+                                              help='OCR language if using OCR method (default: eng)')
+
         # Advanced optimize command
         advanced_opt_parser = subparsers.add_parser('advanced-optimize',
                                                     help='Advanced PDF optimization with full options')
@@ -97,6 +128,18 @@ class CLIInterface:
         advanced_merge_parser.add_argument('-i', '--input', required=True,
                                            help='Input folder or comma-separated file list')
         advanced_merge_parser.add_argument('-o', '--output', required=True, help='Output merged PDF file')
+
+        # Advanced PDF to Word command - NEW
+        advanced_pdf_to_word_parser = subparsers.add_parser('advanced-pdf-to-word',
+                                                            help='Advanced PDF to Word conversion with full options')
+        advanced_pdf_to_word_parser.add_argument('-i', '--input', required=True, help='Input PDF file')
+        advanced_pdf_to_word_parser.add_argument('-o', '--output', required=True, help='Output Word file')
+
+        # Advanced split PDF command - NEW
+        advanced_split_parser = subparsers.add_parser('advanced-split-pdf',
+                                                      help='Advanced PDF splitting with full options')
+        advanced_split_parser.add_argument('-i', '--input', required=True, help='Input PDF file')
+        advanced_split_parser.add_argument('-o', '--output', required=True, help='Output directory')
 
         # Analysis command
         analyze_parser = subparsers.add_parser('analyze', help='Analyze PDF for optimization/OCR/merge recommendations')
@@ -160,11 +203,66 @@ class CLIInterface:
                 print(f"📏 Size: {result['total_original_size_mb']:.2f} MB → {result['final_size_mb']:.2f} MB")
                 print(f"📄 Page numbers: {'Yes' if result['add_page_numbers'] else 'No'}")
 
+            elif args.command == 'pdf-to-word':
+                result = self.processor.pdf_to_word(
+                    args.input, args.output,
+                    method=args.method,
+                    language=args.language
+                )
+                print(f"✅ PDF to Word conversion completed")
+                print(f"📄 Input: {args.input}")
+                print(f"📄 Output: {args.output}")
+                print(f"🔧 Method: {args.method}")
+
+            elif args.command == 'split-pdf':
+                if args.split_type == 'pages' and args.pages:
+                    result = self.processor.split_pdf_by_pages(
+                        args.input, args.output,
+                        page_ranges=args.pages
+                    )
+                elif args.split_type == 'size':
+                    result = self.processor.split_pdf_by_size(
+                        args.input, args.output,
+                        max_size_mb=args.max_size_mb
+                    )
+                elif args.split_type == 'bookmarks':
+                    result = self.processor.split_pdf_by_bookmarks(
+                        args.input, args.output
+                    )
+                else:
+                    # Default pages split
+                    result = self.processor.split_pdf(
+                        args.input, args.output,
+                        pages_per_file=args.pages_per_file
+                    )
+
+                if 'output_files' in result:
+                    print(f"✅ PDF split completed: {len(result['output_files'])} files created")
+                    print(f"📁 Output directory: {args.output}")
+                    print(f"🔧 Split type: {args.split_type}")
+
+            elif args.command == 'batch-pdf-to-word':
+                result = self.processor.batch_pdf_to_word(
+                    args.input, args.output,
+                    method=args.method,
+                    language=args.language
+                )
+                if 'processed' in result:
+                    print(
+                        f"✅ Batch PDF to Word: {result['processed']} files processed, {result.get('failed', 0)} failed")
+                    print(f"🔧 Method: {args.method}")
+
             elif args.command == 'advanced-optimize':
                 self._interactive_advanced_optimize()
 
             elif args.command == 'advanced-merge':
                 self._interactive_advanced_merge()
+
+            elif args.command == 'advanced-pdf-to-word':
+                self._interactive_advanced_pdf_to_word()
+
+            elif args.command == 'advanced-split-pdf':
+                self._interactive_advanced_split_pdf()
 
             elif args.command == 'batch-ocr':
                 result = self.processor.batch_ocr_pdfs(
@@ -236,12 +334,17 @@ class CLIInterface:
             print("6. Simple PDF Merge")
             print("7. Advanced PDF Merge (all options)")
             print("8. Interactive PDF Merge (full menu)")
-            print("9. Batch OCR Processing")
-            print("10. Batch PDF Optimization")
-            print("11. Analyze PDF")
-            print("12. Exit")
+            print("9. PDF to Word Conversion")
+            print("10. Advanced PDF to Word (all options)")
+            print("11. Split PDF")
+            print("12. Advanced Split PDF (all options)")
+            print("13. Batch OCR Processing")
+            print("14. Batch PDF Optimization")
+            print("15. Batch PDF to Word")
+            print("16. Analyze PDF")
+            print("17. Exit")
 
-            choice = input("\nSelect operation (1-12): ").strip()
+            choice = input("\nSelect operation (1-17): ").strip()
 
             if choice == '1':
                 self._interactive_ocr()
@@ -260,12 +363,22 @@ class CLIInterface:
             elif choice == '8':
                 self._interactive_full_merge()
             elif choice == '9':
-                self._interactive_batch_ocr()
+                self._interactive_pdf_to_word()
             elif choice == '10':
-                self._interactive_batch_optimize()
+                self._interactive_advanced_pdf_to_word()
             elif choice == '11':
-                self._interactive_analyze()
+                self._interactive_split_pdf()
             elif choice == '12':
+                self._interactive_advanced_split_pdf()
+            elif choice == '13':
+                self._interactive_batch_ocr()
+            elif choice == '14':
+                self._interactive_batch_optimize()
+            elif choice == '15':
+                self._interactive_batch_pdf_to_word()
+            elif choice == '16':
+                self._interactive_analyze()
+            elif choice == '17':
                 print("🔨 Thanks for using DocForge!")
                 break
             else:
@@ -546,6 +659,152 @@ class CLIInterface:
         except Exception as e:
             print(f"❌ Error: {str(e)}")
 
+    def _interactive_pdf_to_word(self):
+        """Interactive PDF to Word conversion - Simple version."""
+        print("\n--- PDF to Word Conversion (Simple) ---")
+        input_file = input("Input PDF file: ")
+        output_file = input("Output Word file (.docx): ")
+
+        if not output_file.endswith('.docx'):
+            output_file += '.docx'
+
+        print("\nConversion method:")
+        print("1. Simple extraction (fast, good for text PDFs)")
+        print("2. OCR-based conversion (slower, good for scanned PDFs)")
+        method_choice = input("Choose method (1-2) [1]: ") or "1"
+        method = "simple" if method_choice == "1" else "ocr"
+
+        language = "eng"
+        if method == "ocr":
+            language = input("OCR language [eng]: ") or "eng"
+
+        try:
+            result = self.processor.pdf_to_word(input_file, output_file, method=method, language=language)
+            print(f"✅ PDF to Word conversion completed")
+            print(f"📄 Method: {method}")
+            print(f"📁 Output: {output_file}")
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+
+    def _interactive_advanced_pdf_to_word(self):
+        """Interactive PDF to Word - Advanced version with all options."""
+        print("\n--- PDF to Word Conversion (Advanced) ---")
+        input_file = input("Input PDF file: ")
+        output_file = input("Output Word file (.docx): ")
+
+        if not output_file.endswith('.docx'):
+            output_file += '.docx'
+
+        print("\n📄 Conversion Methods:")
+        print("1. Simple Text Extraction")
+        print("   - Fast extraction of existing text")
+        print("   - Best for: Native PDFs with selectable text")
+        print("   - Preserves: Text content, basic formatting")
+        print()
+        print("2. OCR-based Conversion")
+        print("   - OCR + text extraction")
+        print("   - Best for: Scanned PDFs, image-based PDFs")
+        print("   - Preserves: All text content via OCR")
+        print()
+
+        method_choice = input("Choose conversion method (1-2): ").strip()
+        method = "simple" if method_choice == "1" else "ocr"
+
+        language = "eng"
+        if method == "ocr":
+            language = input("OCR language [eng]: ") or "eng"
+
+        try:
+            result = self.processor.pdf_to_word(input_file, output_file, method=method, language=language)
+            print(f"✅ Advanced PDF to Word conversion completed")
+            print(f"🔧 Method: {method}")
+            print(f"📁 Output: {output_file}")
+            if language != "eng":
+                print(f"🌐 Language: {language}")
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+
+    def _interactive_split_pdf(self):
+        """Interactive PDF splitting - Simple version."""
+        print("\n--- Split PDF (Simple) ---")
+        input_file = input("Input PDF file: ")
+        output_folder = input("Output folder: ")
+
+        print("\nSplit method:")
+        print("1. Split by pages (extract specific pages)")
+        print("2. Split every N pages")
+        print("3. Split by file size")
+        split_choice = input("Choose method (1-3) [1]: ") or "1"
+
+        try:
+            if split_choice == "1":
+                pages = input("Page ranges (e.g., '1-5,10-15') or 'all': ")
+                result = self.processor.split_pdf_by_pages(input_file, output_folder, page_ranges=pages)
+            elif split_choice == "2":
+                pages_per_file = int(input("Pages per file [1]: ") or "1")
+                result = self.processor.split_pdf(input_file, output_folder, pages_per_file=pages_per_file)
+            elif split_choice == "3":
+                max_size = float(input("Maximum file size in MB [10.0]: ") or "10.0")
+                result = self.processor.split_pdf_by_size(input_file, output_folder, max_size_mb=max_size)
+
+            if 'output_files' in result:
+                print(f"✅ PDF split completed: {len(result['output_files'])} files created")
+                print(f"📁 Output folder: {output_folder}")
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+
+    def _interactive_advanced_split_pdf(self):
+        """Interactive PDF splitting - Advanced version with all options."""
+        print("\n--- Split PDF (Advanced) ---")
+        input_file = input("Input PDF file: ")
+        output_folder = input("Output folder: ")
+
+        print("\n📄 Split Methods:")
+        print("1. Split by Page Ranges")
+        print("   - Extract specific page ranges")
+        print("   - Best for: Extracting chapters, sections")
+        print()
+        print("2. Split by Fixed Page Count")
+        print("   - Split into files with N pages each")
+        print("   - Best for: Even distribution")
+        print()
+        print("3. Split by File Size")
+        print("   - Split to keep files under size limit")
+        print("   - Best for: Size-constrained sharing")
+        print()
+        print("4. Split by Bookmarks")
+        print("   - Split at bookmark boundaries")
+        print("   - Best for: Documents with proper bookmarks")
+        print()
+
+        split_choice = input("Choose method (1-4): ").strip()
+
+        try:
+            if split_choice == "1":
+                print("Example page ranges: '1-5,10-15' or '1-3,7,12-20'")
+                pages = input("Page ranges: ")
+                result = self.processor.split_pdf_by_pages(input_file, output_folder, page_ranges=pages)
+            elif split_choice == "2":
+                pages_per_file = int(input("Pages per file: "))
+                result = self.processor.split_pdf(input_file, output_folder, pages_per_file=pages_per_file)
+            elif split_choice == "3":
+                max_size = float(input("Maximum file size in MB: "))
+                result = self.processor.split_pdf_by_size(input_file, output_folder, max_size_mb=max_size)
+            elif split_choice == "4":
+                result = self.processor.split_pdf_by_bookmarks(input_file, output_folder)
+            else:
+                print("❌ Invalid choice, using page ranges")
+                pages = input("Page ranges: ")
+                result = self.processor.split_pdf_by_pages(input_file, output_folder, page_ranges=pages)
+
+            if 'output_files' in result:
+                print(f"✅ Advanced PDF split completed: {len(result['output_files'])} files created")
+                print(f"📁 Output folder: {output_folder}")
+                print(
+                    f"🔧 Method: {['Page ranges', 'Fixed pages', 'File size', 'Bookmarks'][int(split_choice) - 1] if split_choice.isdigit() and 1 <= int(split_choice) <= 4 else 'Page ranges'}")
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+
     def _interactive_batch_ocr(self):
         """Interactive batch OCR."""
         print("\n--- Batch OCR ---")
@@ -604,6 +863,36 @@ class CLIInterface:
                                    result['total_original_size']) * 100
                 print(f"💾 Total reduction: {total_reduction:.1f}%")
                 print(f"📏 Total size: {result['total_original_size']:.2f} MB → {result['total_final_size']:.2f} MB")
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+
+    def _interactive_batch_pdf_to_word(self):
+        """Interactive batch PDF to Word conversion."""
+        print("\n--- Batch PDF to Word ---")
+        input_folder = input("Input folder: ")
+        output_folder = input("Output folder: ")
+
+        print("\nConversion method:")
+        print("1. Simple extraction (fast)")
+        print("2. OCR-based conversion (slower, better for scanned PDFs)")
+
+        method_choice = input("Choose method (1-2) [1]: ") or "1"
+        method = "simple" if method_choice == "1" else "ocr"
+
+        language = "eng"
+        if method == "ocr":
+            language = input("OCR language [eng]: ") or "eng"
+
+        try:
+            result = self.processor.batch_pdf_to_word(
+                input_folder, output_folder,
+                method=method,
+                language=language
+            )
+            if 'processed' in result:
+                print(f"✅ Batch PDF to Word: {result['processed']} files processed, {result.get('failed', 0)} failed")
+                print(f"🔧 Method: {method}")
+                print(f"📁 Output folder: {output_folder}")
         except Exception as e:
             print(f"❌ Error: {str(e)}")
 

@@ -1,430 +1,389 @@
-#!/usr/bin/env python3
 """
-DocForge PDF Splitter Module
-Follows DocForge architecture with BaseProcessor inheritance
+PDF splitter functionality using proven implementation.
+Split PDFs by pages, bookmarks, or file size while preserving document integrity.
 """
 
-import sys
 import os
+import glob
 from pathlib import Path
-from typing import List, Dict, Optional, Union, Tuple
+from typing import Dict, Any, List, Union, Tuple
 
 try:
     from PyPDF2 import PdfReader, PdfWriter
+    HAS_PDF_DEPS = True
 except ImportError:
-    print("PyPDF2 is required. Install it with: pip install PyPDF2")
-    sys.exit(1)
+    HAS_PDF_DEPS = False
+    print("PDF dependencies not available. Install with: pip install PyPDF2")
 
-# Import BaseProcessor from your existing architecture
-try:
-    from ..core.base_processor import BaseProcessor
-except ImportError:
-    try:
-        from core.base_processor import BaseProcessor
-    except ImportError:
-        # Fallback if BaseProcessor doesn't exist yet
-        class BaseProcessor:
-            def __init__(self, verbose=True):
-                self.verbose = verbose
+from ..core.base import BaseProcessor
+from ..core.exceptions import DocForgeError
 
-            def log(self, message):
-                if self.verbose:
-                    print(message)
+
+def get_file_size_mb(file_path):
+    """Get file size in MB"""
+    return os.path.getsize(file_path) / (1024 * 1024)
 
 
 class PDFSplitter(BaseProcessor):
-    """
-    DocForge PDF Splitter
+    """Handles PDF splitting operations using proven implementation."""
 
-    Split PDF files into multiple documents based on page ranges, bookmarks,
-    or custom splitting criteria. Supports batch processing and various output formats.
-    """
+    def __init__(self, verbose: bool = False):
+        super().__init__(verbose)
+        self.has_dependencies = HAS_PDF_DEPS
 
-    def __init__(self, verbose: bool = True):
+    def process(self, input_path: Union[str, List[str]], output_path: str, **kwargs) -> Dict[str, Any]:
+        """Process PDF splitting."""
+        return self.split_pdf(input_path, output_path, **kwargs)
+
+    def split_pdf(self, input_path: str, output_dir: str,
+                  split_type: str = "pages",
+                  pages_per_file: int = 1,
+                  page_ranges: str = None,
+                  max_size_mb: float = 10.0,
+                  **kwargs) -> Dict[str, Any]:
         """
-        Initialize the PDF splitter.
+        Split PDF into multiple files using various methods.
 
         Args:
-            verbose (bool): Enable verbose logging
-        """
-        super().__init__(verbose=verbose)
-
-    def process(self, input_path: str, method: str = 'pages', **kwargs) -> List[str]:
-        """
-        Main processing method - split PDF using specified method.
-
-        Args:
-            input_path (str): Path to input PDF file
-            method (str): Split method ('pages', 'size', 'bookmarks')
-            **kwargs: Additional options based on method
+            input_path: Path to input PDF file
+            output_dir: Directory for output files
+            split_type: Type of split ('pages', 'size', 'bookmarks')
+            pages_per_file: Pages per file for 'pages' split type
+            page_ranges: Page ranges for extraction (e.g., "1-5,10-15")
+            max_size_mb: Maximum file size in MB for 'size' split type
 
         Returns:
-            List[str]: List of created output file paths
+            Dict[str, Any]: Processing results
         """
-        if method == 'pages':
-            start_pages = kwargs.get('start_pages', [1])
-            output_dir = kwargs.get('output_dir')
-            naming_template = kwargs.get('naming_template', "{base}_part{num}_pages{start}-{end}")
-            return self.split_by_pages(input_path, start_pages, output_dir, naming_template)
 
-        elif method == 'size':
-            max_pages_per_file = kwargs.get('max_pages_per_file', 10)
-            output_dir = kwargs.get('output_dir')
-            return self.split_by_size(input_path, max_pages_per_file, output_dir)
+        if not self.has_dependencies:
+            raise DocForgeError("PDF dependencies not installed. Run: pip install PyPDF2")
 
-        elif method == 'bookmarks':
-            output_dir = kwargs.get('output_dir')
-            return self.split_by_bookmarks(input_path, output_dir)
-
-        else:
-            raise ValueError(f"Unknown split method: {method}")
-
-    def split_by_pages(self, input_path: str, start_pages: Union[str, List[int]],
-                       output_dir: Optional[str] = None,
-                       naming_template: str = "{base}_part{num}_pages{start}-{end}") -> List[str]:
-        """
-        Split PDF by start page numbers.
-
-        Args:
-            input_path (str): Path to input PDF
-            start_pages (Union[str, List[int]]): Start page numbers
-            output_dir (str, optional): Output directory
-            naming_template (str): Filename template
-
-        Returns:
-            List[str]: Created file paths
-        """
-        input_path = Path(input_path)
-
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input file not found: {input_path}")
-
-        # Parse start pages if string provided
-        if isinstance(start_pages, str):
-            start_pages = self._parse_start_pages(start_pages)
-
-        # Set output directory
-        if output_dir is None:
-            output_dir = input_path.parent
-        else:
-            output_dir = Path(output_dir)
-            output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Read the input PDF
-        self.log(f"Reading PDF: {input_path}")
-        reader = PdfReader(str(input_path))
-        total_pages = len(reader.pages)
-        self.log(f"Total pages: {total_pages}")
-
-        # Validate start pages
-        start_pages = sorted(set(start_pages))
-        if start_pages[0] < 1:
-            raise ValueError("Page numbers must start from 1")
-        if start_pages[-1] > total_pages:
-            raise ValueError(f"Start page {start_pages[-1]} exceeds total pages {total_pages}")
-
-        # Calculate page ranges
-        page_ranges = self._calculate_page_ranges(start_pages, total_pages)
-
-        self.log(f"Will create {len(page_ranges)} files:")
-        for i, (start, end) in enumerate(page_ranges):
-            self.log(f"  Part {i + 1}: pages {start}-{end}")
-
-        # Create output files
-        output_files = []
-        base_name = input_path.stem
-
-        for i, (start_page, end_page) in enumerate(page_ranges):
-            # Create output filename using template
-            output_filename = naming_template.format(
-                base=base_name,
-                num=i + 1,
-                start=start_page,
-                end=end_page
-            ) + ".pdf"
-            output_path = output_dir / output_filename
-
-            # Create new PDF with specified pages
-            writer = PdfWriter()
-
-            # Add pages (convert from 1-indexed to 0-indexed)
-            for page_num in range(start_page - 1, end_page):
-                writer.add_page(reader.pages[page_num])
-
-            # Write to file
-            with open(output_path, 'wb') as output_file:
-                writer.write(output_file)
-
-            output_files.append(str(output_path))
-            self.log(f"Created: {output_path}")
-
-        return output_files
-
-    def split_by_size(self, input_path: str, max_pages_per_file: int,
-                      output_dir: Optional[str] = None) -> List[str]:
-        """
-        Split PDF by maximum pages per file.
-
-        Args:
-            input_path (str): Path to input PDF
-            max_pages_per_file (int): Maximum pages per output file
-            output_dir (str, optional): Output directory
-
-        Returns:
-            List[str]: Created file paths
-        """
-        input_path = Path(input_path)
-
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input file not found: {input_path}")
-
-        reader = PdfReader(str(input_path))
-        total_pages = len(reader.pages)
-
-        # Calculate start pages based on size limit
-        start_pages = list(range(1, total_pages + 1, max_pages_per_file))
-
-        self.log(f"Splitting {total_pages} pages into files of max {max_pages_per_file} pages each")
-
-        return self.split_by_pages(input_path, start_pages, output_dir,
-                                   "{base}_part{num}_{start}-{end}")
-
-    def split_by_bookmarks(self, input_path: str, output_dir: Optional[str] = None) -> List[str]:
-        """
-        Split PDF based on bookmarks.
-
-        Args:
-            input_path (str): Path to input PDF
-            output_dir (str, optional): Output directory
-
-        Returns:
-            List[str]: Created file paths
-        """
-        input_path = Path(input_path)
-
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input file not found: {input_path}")
-
-        reader = PdfReader(str(input_path))
-
-        if not reader.outline:
-            raise ValueError("PDF has no bookmarks/outline to split by")
-
-        # Extract bookmark page numbers
-        bookmark_pages = self._extract_bookmark_pages(reader)
-
-        if not bookmark_pages:
-            raise ValueError("Could not extract valid bookmark page numbers")
-
-        self.log(f"Found {len(bookmark_pages)} bookmarks")
-        for title, page_num in bookmark_pages:
-            self.log(f"  '{title}' at page {page_num}")
-
-        # Use only the page numbers for splitting
-        start_pages = [page for _, page in bookmark_pages]
-
-        return self.split_by_pages(input_path, start_pages, output_dir,
-                                   "{base}_{num}_{start}-{end}")
-
-    def extract_pages(self, input_path: str, page_range: str, output_path: str) -> bool:
-        """
-        Extract specific pages from PDF.
-
-        Args:
-            input_path (str): Path to input PDF
-            page_range (str): Page range specification (e.g., "1-5,10,15-20")
-            output_path (str): Path for output PDF
-
-        Returns:
-            bool: True if extraction successful
-        """
         try:
-            input_path = Path(input_path)
-            output_path = Path(output_path)
+            # Validate input
+            if not os.path.exists(input_path):
+                raise DocForgeError(f"Input file not found: {input_path}")
 
-            if not input_path.exists():
-                raise FileNotFoundError(f"Input file not found: {input_path}")
+            # Ensure output directory exists
+            os.makedirs(output_dir, exist_ok=True)
 
-            # Parse page range
-            pages_to_extract = self._parse_page_range(page_range)
+            if self.verbose:
+                print(f"🔪 Starting PDF splitting: {os.path.basename(input_path)}")
+                print(f"📁 Output directory: {output_dir}")
+                print(f"🔧 Split type: {split_type}")
 
-            reader = PdfReader(str(input_path))
-            total_pages = len(reader.pages)
+            # Calculate original size
+            original_size = get_file_size_mb(input_path)
 
-            # Validate page numbers
-            invalid_pages = [p for p in pages_to_extract if p < 1 or p > total_pages]
-            if invalid_pages:
-                raise ValueError(f"Invalid page numbers: {invalid_pages}")
+            # Choose splitting method
+            if split_type == "pages" and page_ranges:
+                output_files = self._split_by_page_ranges(input_path, output_dir, page_ranges)
+            elif split_type == "pages":
+                output_files = self._split_by_fixed_pages(input_path, output_dir, pages_per_file)
+            elif split_type == "size":
+                output_files = self._split_by_size(input_path, output_dir, max_size_mb)
+            elif split_type == "bookmarks":
+                output_files = self._split_by_bookmarks(input_path, output_dir)
+            else:
+                raise DocForgeError(f"Unknown split type: {split_type}")
 
-            # Create output directory if needed
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            # Calculate total output size
+            total_output_size = sum(get_file_size_mb(f) for f in output_files if os.path.exists(f))
 
-            # Create new PDF with specified pages
-            writer = PdfWriter()
+            if self.verbose:
+                print(f"✅ Successfully split PDF into {len(output_files)} files")
+                print(f"📏 Original size: {original_size:.2f} MB → Total output: {total_output_size:.2f} MB")
 
-            for page_num in sorted(pages_to_extract):
-                writer.add_page(reader.pages[page_num - 1])  # Convert to 0-indexed
-
-            # Write to file
-            with open(output_path, 'wb') as output_file:
-                writer.write(output_file)
-
-            self.log(f"Extracted {len(pages_to_extract)} pages to: {output_path}")
-            return True
-
-        except Exception as e:
-            self.log(f"Error extracting pages: {e}")
-            return False
-
-    def get_pdf_info(self, input_path: str) -> Dict:
-        """
-        Get information about a PDF file.
-
-        Args:
-            input_path (str): Path to PDF file
-
-        Returns:
-            Dict: PDF information including page count, bookmarks, etc.
-        """
-        input_path = Path(input_path)
-
-        if not input_path.exists():
-            raise FileNotFoundError(f"File not found: {input_path}")
-
-        reader = PdfReader(str(input_path))
-
-        info = {
-            'path': str(input_path),
-            'page_count': len(reader.pages),
-            'has_bookmarks': bool(reader.outline),
-            'bookmarks': [],
-            'metadata': {}
-        }
-
-        # Extract metadata
-        if reader.metadata:
-            info['metadata'] = {
-                'title': reader.metadata.get('/Title', ''),
-                'author': reader.metadata.get('/Author', ''),
-                'subject': reader.metadata.get('/Subject', ''),
-                'creator': reader.metadata.get('/Creator', ''),
-                'producer': reader.metadata.get('/Producer', ''),
-                'creation_date': reader.metadata.get('/CreationDate', ''),
-                'modification_date': reader.metadata.get('/ModDate', '')
+            return {
+                'success': True,
+                'split_type': split_type,
+                'files_created': len(output_files),
+                'output_files': output_files,
+                'original_size_mb': original_size,
+                'total_output_size_mb': total_output_size,
+                'output_dir': output_dir
             }
 
-        # Extract bookmarks
-        if reader.outline:
-            try:
-                bookmark_pages = self._extract_bookmark_pages(reader)
-                info['bookmarks'] = [{'title': title, 'page': page}
-                                     for title, page in bookmark_pages]
-            except:
-                pass
+        except Exception as e:
+            raise DocForgeError(f"Failed to split PDF: {str(e)}")
 
-        return info
+    def split_pdf_by_pages(self, input_path: str, output_dir: str, page_ranges: str, **kwargs) -> Dict[str, Any]:
+        """
+        Split PDF by specific page ranges.
 
-    def batch_split(self, input_patterns: List[str], split_config: Dict,
-                    output_dir: Optional[str] = None) -> Dict[str, List[str]]:
+        Args:
+            input_path: Path to input PDF file
+            output_dir: Directory for output files
+            page_ranges: Page ranges (e.g., "1-5,10-15")
+
+        Returns:
+            Dict[str, Any]: Processing results
+        """
+        return self.split_pdf(input_path, output_dir, split_type="pages", page_ranges=page_ranges, **kwargs)
+
+    def split_pdf_by_size(self, input_path: str, output_dir: str, max_size_mb: float = 10.0, **kwargs) -> Dict[str, Any]:
+        """
+        Split PDF by file size.
+
+        Args:
+            input_path: Path to input PDF file
+            output_dir: Directory for output files
+            max_size_mb: Maximum file size in MB
+
+        Returns:
+            Dict[str, Any]: Processing results
+        """
+        return self.split_pdf(input_path, output_dir, split_type="size", max_size_mb=max_size_mb, **kwargs)
+
+    def split_pdf_by_bookmarks(self, input_path: str, output_dir: str, **kwargs) -> Dict[str, Any]:
+        """
+        Split PDF by bookmarks.
+
+        Args:
+            input_path: Path to input PDF file
+            output_dir: Directory for output files
+
+        Returns:
+            Dict[str, Any]: Processing results
+        """
+        return self.split_pdf(input_path, output_dir, split_type="bookmarks", **kwargs)
+
+    def batch_split_pdfs(self, input_folder: str, output_folder: str, split_type: str = "pages",
+                         **kwargs) -> Dict[str, Any]:
         """
         Batch split multiple PDF files.
 
         Args:
-            input_patterns (List[str]): List of file paths or glob patterns
-            split_config (Dict): Configuration for splitting (method, parameters)
-            output_dir (str, optional): Base output directory
+            input_folder: Directory containing input PDF files
+            output_folder: Directory for output files
+            split_type: Type of split ('pages', 'size', 'bookmarks')
 
         Returns:
-            Dict[str, List[str]]: Mapping of input files to output files
+            Dict[str, Any]: Batch processing results
         """
-        results = {}
+        if not self.has_dependencies:
+            raise DocForgeError("PDF dependencies not installed. Run: pip install PyPDF2")
 
-        # Collect all input files
-        input_files = []
-        for pattern in input_patterns:
-            if '*' in pattern or '?' in pattern:
-                from glob import glob
-                input_files.extend(glob(pattern))
-            else:
-                input_files.append(pattern)
-
-        method = split_config.get('method', 'pages')
-
-        for input_file in input_files:
-            try:
-                self.log(f"Processing: {input_file}")
-
-                # Create output subdirectory for each input file
-                file_output_dir = output_dir
-                if output_dir:
-                    file_stem = Path(input_file).stem
-                    file_output_dir = Path(output_dir) / file_stem
-
-                # Process based on method
-                if method == 'pages':
-                    start_pages = split_config.get('start_pages', [1])
-                    output_files = self.split_by_pages(input_file, start_pages, file_output_dir)
-                elif method == 'size':
-                    max_pages = split_config.get('max_pages_per_file', 10)
-                    output_files = self.split_by_size(input_file, max_pages, file_output_dir)
-                elif method == 'bookmarks':
-                    output_files = self.split_by_bookmarks(input_file, file_output_dir)
-                else:
-                    raise ValueError(f"Unknown split method: {method}")
-
-                results[input_file] = output_files
-
-            except Exception as e:
-                self.log(f"Error processing {input_file}: {e}")
-                results[input_file] = []
-
-        return results
-
-    def _parse_start_pages(self, start_pages_str: str) -> List[int]:
-        """Parse comma-separated start page numbers."""
         try:
-            pages = [int(p.strip()) for p in start_pages_str.split(',')]
-            return pages
-        except ValueError as e:
-            raise ValueError(f"Invalid page numbers format: {start_pages_str}. Use format: 1,89,150")
+            # Find PDF files
+            pdf_files = glob.glob(os.path.join(input_folder, "*.pdf"))
+            if not pdf_files:
+                raise DocForgeError(f"No PDF files found in {input_folder}")
 
-    def _parse_page_range(self, page_range: str) -> List[int]:
-        """
-        Parse page range specification like "1-5,10,15-20".
+            # Ensure output directory exists
+            os.makedirs(output_folder, exist_ok=True)
 
-        Args:
-            page_range (str): Page range specification
+            if self.verbose:
+                print(f"🔪 Starting batch PDF splitting: {len(pdf_files)} files")
+                print(f"📁 Input folder: {input_folder}")
+                print(f"📁 Output folder: {output_folder}")
+                print(f"🔧 Split type: {split_type}")
 
-        Returns:
-            List[int]: List of page numbers
-        """
-        pages = []
+            results = []
+            successful = 0
+            failed = 0
+            total_files_created = 0
 
-        for part in page_range.split(','):
+            for pdf_file in pdf_files:
+                try:
+                    filename = os.path.basename(pdf_file)
+                    file_output_dir = os.path.join(output_folder, os.path.splitext(filename)[0])
+
+                    if self.verbose:
+                        print(f"🔄 Processing: {filename}")
+
+                    result = self.split_pdf(pdf_file, file_output_dir, split_type=split_type, **kwargs)
+                    results.append(result)
+
+                    if result['success']:
+                        successful += 1
+                        total_files_created += result['files_created']
+                        if self.verbose:
+                            print(f"  ✅ Created {result['files_created']} files")
+                    else:
+                        failed += 1
+
+                except Exception as e:
+                    failed += 1
+                    if self.verbose:
+                        print(f"  ❌ Failed: {str(e)}")
+                    results.append({
+                        'success': False,
+                        'error': str(e),
+                        'input_file': pdf_file
+                    })
+
+            if self.verbose:
+                print(f"✅ Batch splitting completed: {successful}/{len(pdf_files)} successful")
+                print(f"📄 Total files created: {total_files_created}")
+
+            return {
+                'success': True,
+                'split_type': split_type,
+                'total_input_files': len(pdf_files),
+                'successful': successful,
+                'failed': failed,
+                'total_files_created': total_files_created,
+                'results': results,
+                'input_folder': input_folder,
+                'output_folder': output_folder
+            }
+
+        except Exception as e:
+            raise DocForgeError(f"Failed to batch split PDFs: {str(e)}")
+
+    def _split_by_page_ranges(self, input_path: str, output_dir: str, page_ranges: str) -> List[str]:
+        """Split PDF by specific page ranges."""
+        reader = PdfReader(input_path)
+        total_pages = len(reader.pages)
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+
+        if self.verbose:
+            print(f"📄 Total pages: {total_pages}")
+            print(f"📋 Page ranges: {page_ranges}")
+
+        # Parse page ranges
+        ranges = self._parse_page_ranges(page_ranges)
+        output_files = []
+
+        for i, (start, end) in enumerate(ranges):
+            if start < 1 or end > total_pages:
+                raise DocForgeError(f"Page range {start}-{end} is invalid for {total_pages} pages")
+
+            output_filename = f"{base_name}_pages_{start}-{end}.pdf"
+            output_path = os.path.join(output_dir, output_filename)
+
+            writer = PdfWriter()
+            for page_num in range(start - 1, end):  # Convert to 0-indexed
+                writer.add_page(reader.pages[page_num])
+
+            with open(output_path, 'wb') as output_file:
+                writer.write(output_file)
+
+            output_files.append(output_path)
+
+            if self.verbose:
+                print(f"  ✅ Created: {output_filename} (pages {start}-{end})")
+
+        return output_files
+
+    def _split_by_fixed_pages(self, input_path: str, output_dir: str, pages_per_file: int) -> List[str]:
+        """Split PDF into files with fixed number of pages."""
+        reader = PdfReader(input_path)
+        total_pages = len(reader.pages)
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+
+        if self.verbose:
+            print(f"📄 Total pages: {total_pages}")
+            print(f"📋 Pages per file: {pages_per_file}")
+
+        output_files = []
+        file_count = 1
+
+        for start_page in range(0, total_pages, pages_per_file):
+            end_page = min(start_page + pages_per_file, total_pages)
+
+            output_filename = f"{base_name}_part_{file_count}.pdf"
+            output_path = os.path.join(output_dir, output_filename)
+
+            writer = PdfWriter()
+            for page_num in range(start_page, end_page):
+                writer.add_page(reader.pages[page_num])
+
+            with open(output_path, 'wb') as output_file:
+                writer.write(output_file)
+
+            output_files.append(output_path)
+            file_count += 1
+
+            if self.verbose:
+                print(f"  ✅ Created: {output_filename} (pages {start_page + 1}-{end_page})")
+
+        return output_files
+
+    def _split_by_size(self, input_path: str, output_dir: str, max_size_mb: float) -> List[str]:
+        """Split PDF by approximate file size."""
+        reader = PdfReader(input_path)
+        total_pages = len(reader.pages)
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+        original_size = get_file_size_mb(input_path)
+
+        if self.verbose:
+            print(f"📄 Total pages: {total_pages}")
+            print(f"📏 Original size: {original_size:.2f} MB")
+            print(f"🎯 Target max size: {max_size_mb} MB")
+
+        # Estimate pages per file based on size
+        avg_mb_per_page = original_size / total_pages
+        estimated_pages_per_file = max(1, int(max_size_mb / avg_mb_per_page))
+
+        if self.verbose:
+            print(f"📊 Estimated pages per file: {estimated_pages_per_file}")
+
+        return self._split_by_fixed_pages(input_path, output_dir, estimated_pages_per_file)
+
+    def _split_by_bookmarks(self, input_path: str, output_dir: str) -> List[str]:
+        """Split PDF by bookmarks."""
+        reader = PdfReader(input_path)
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+
+        if not reader.outline:
+            raise DocForgeError("PDF has no bookmarks to split by")
+
+        # Extract bookmark page numbers
+        bookmarks = self._extract_bookmark_pages(reader)
+
+        if not bookmarks:
+            raise DocForgeError("Could not extract valid bookmark page numbers")
+
+        if self.verbose:
+            print(f"📑 Found {len(bookmarks)} bookmarks:")
+            for title, page_num in bookmarks[:5]:  # Show first 5
+                print(f"  '{title}' at page {page_num}")
+            if len(bookmarks) > 5:
+                print(f"  ... and {len(bookmarks) - 5} more")
+
+        output_files = []
+        total_pages = len(reader.pages)
+
+        for i, (title, start_page) in enumerate(bookmarks):
+            # Determine end page
+            if i < len(bookmarks) - 1:
+                end_page = bookmarks[i + 1][1] - 1
+            else:
+                end_page = total_pages
+
+            # Sanitize bookmark title for filename
+            safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
+            output_filename = f"{base_name}_{i + 1:02d}_{safe_title}.pdf"
+            output_path = os.path.join(output_dir, output_filename)
+
+            writer = PdfWriter()
+            for page_num in range(start_page - 1, end_page):  # Convert to 0-indexed
+                writer.add_page(reader.pages[page_num])
+
+            with open(output_path, 'wb') as output_file:
+                writer.write(output_file)
+
+            output_files.append(output_path)
+
+            if self.verbose:
+                print(f"  ✅ Created: {output_filename} (pages {start_page}-{end_page})")
+
+        return output_files
+
+    def _parse_page_ranges(self, page_ranges: str) -> List[Tuple[int, int]]:
+        """Parse page ranges like '1-5,10-15,20'."""
+        ranges = []
+        for part in page_ranges.split(','):
             part = part.strip()
-
             if '-' in part:
-                start, end = part.split('-', 1)
-                start_page = int(start.strip())
-                end_page = int(end.strip())
-                pages.extend(range(start_page, end_page + 1))
+                start, end = map(int, part.split('-'))
+                ranges.append((start, end))
             else:
-                pages.append(int(part))
-
-        return sorted(set(pages))
-
-    def _calculate_page_ranges(self, start_pages: List[int], total_pages: int) -> List[Tuple[int, int]]:
-        """Calculate page ranges from start pages."""
-        page_ranges = []
-
-        for i, start in enumerate(start_pages):
-            if i == len(start_pages) - 1:
-                end = total_pages
-            else:
-                end = start_pages[i + 1] - 1
-            page_ranges.append((start, end))
-
-        return page_ranges
+                page = int(part)
+                ranges.append((page, page))
+        return ranges
 
     def _extract_bookmark_pages(self, reader: PdfReader) -> List[Tuple[str, int]]:
         """Extract bookmark titles and page numbers."""
@@ -455,81 +414,137 @@ class PDFSplitter(BaseProcessor):
 
         return unique_bookmarks
 
+    def choose_split_method(self):
+        """Interactive method selection for users."""
+        print("✂️ PDF Split Methods")
+        print("=" * 50)
+        print("Choose your split method:")
+        print()
+        print("1. Split by Page Ranges")
+        print("   - Extract specific page ranges")
+        print("   - Best for: Extracting chapters, sections")
+        print()
+        print("2. Split by Fixed Page Count")
+        print("   - Split into files with N pages each")
+        print("   - Best for: Even distribution")
+        print()
+        print("3. Split by File Size")
+        print("   - Split to keep files under size limit")
+        print("   - Best for: Size-constrained sharing")
+        print()
+        print("4. Split by Bookmarks")
+        print("   - Split at bookmark boundaries")
+        print("   - Best for: Documents with proper bookmarks")
+        print()
 
-# Backward compatibility functions
-def parse_start_pages(start_pages_str):
-    """Parse comma-separated start page numbers."""
+        choice = input("Enter your choice (1-4): ").strip()
+
+        if choice == "1":
+            return self._run_page_ranges_split()
+        elif choice == "2":
+            return self._run_fixed_pages_split()
+        elif choice == "3":
+            return self._run_size_split()
+        elif choice == "4":
+            return self._run_bookmarks_split()
+        else:
+            print("❌ Invalid choice. Using page ranges split.")
+            return self._run_page_ranges_split()
+
+    def _run_page_ranges_split(self):
+        """Run page ranges split with user input."""
+        print("\n--- Split by Page Ranges ---")
+        input_path = input("📁 Input PDF file: ").strip()
+        output_dir = input("📁 Output directory: ").strip()
+        print("📋 Example page ranges: '1-5,10-15' or '1-3,7,12-20'")
+        page_ranges = input("📋 Page ranges: ").strip()
+
+        return self.split_pdf_by_pages(input_path, output_dir, page_ranges)
+
+    def _run_fixed_pages_split(self):
+        """Run fixed pages split with user input."""
+        print("\n--- Split by Fixed Page Count ---")
+        input_path = input("📁 Input PDF file: ").strip()
+        output_dir = input("📁 Output directory: ").strip()
+        pages_per_file = int(input("📋 Pages per file: ").strip())
+
+        return self.split_pdf(input_path, output_dir, split_type="pages", pages_per_file=pages_per_file)
+
+    def _run_size_split(self):
+        """Run size split with user input."""
+        print("\n--- Split by File Size ---")
+        input_path = input("📁 Input PDF file: ").strip()
+        output_dir = input("📁 Output directory: ").strip()
+        max_size_mb = float(input("📏 Maximum file size (MB): ").strip())
+
+        return self.split_pdf_by_size(input_path, output_dir, max_size_mb)
+
+    def _run_bookmarks_split(self):
+        """Run bookmarks split with user input."""
+        print("\n--- Split by Bookmarks ---")
+        input_path = input("📁 Input PDF file: ").strip()
+        output_dir = input("📁 Output directory: ").strip()
+
+        return self.split_pdf_by_bookmarks(input_path, output_dir)
+
+    def analyze_split_candidates(self, input_path: str):
+        """Analyze PDF for splitting recommendations."""
+        if not os.path.exists(input_path):
+            print(f"❌ File not found: {input_path}")
+            return
+
+        try:
+            reader = PdfReader(input_path)
+            total_pages = len(reader.pages)
+            file_size = get_file_size_mb(input_path)
+
+            print(f"📊 Split Analysis: {os.path.basename(input_path)}")
+            print(f"📄 Total pages: {total_pages}")
+            print(f"📏 File size: {file_size:.2f} MB")
+            print(f"📊 Average MB per page: {file_size / total_pages:.3f}")
+
+            # Check for bookmarks
+            if reader.outline:
+                bookmarks = self._extract_bookmark_pages(reader)
+                print(f"📑 Bookmarks found: {len(bookmarks)}")
+                print("💡 Recommendation: Split by bookmarks for logical sections")
+            else:
+                print("📑 No bookmarks found")
+
+            # Size recommendations
+            if file_size > 50:
+                print("💡 Recommendation: Large file - consider splitting by size (10-20 MB chunks)")
+            elif total_pages > 100:
+                print("💡 Recommendation: Many pages - consider splitting by page count (20-50 pages)")
+            else:
+                print("💡 Recommendation: Moderate size - page ranges might be most appropriate")
+
+        except Exception as e:
+            print(f"❌ Error analyzing PDF: {str(e)}")
+
+
+# Convenience functions for easy usage
+def create_pdf_splitter(verbose=True):
+    """Factory function to create PDF splitter instance."""
+    return PDFSplitter(verbose=verbose)
+
+
+def run_interactive_splitter():
+    """Run the interactive PDF splitter."""
+    splitter = create_pdf_splitter(verbose=True)
+
+    if not splitter.has_dependencies:
+        print("❌ PDF dependencies not installed. Run: pip install PyPDF2")
+        return
+
     try:
-        pages = [int(p.strip()) for p in start_pages_str.split(',')]
-        return pages
-    except ValueError as e:
-        raise ValueError(f"Invalid page numbers format: {start_pages_str}. Use format: 1,89,150")
-
-
-def split_pdf(input_path, start_pages, output_dir=None):
-    """
-    Split a PDF file into multiple files based on start page numbers.
-    Original function preserved for backward compatibility.
-
-    Args:
-        input_path (str): Path to the input PDF file
-        start_pages (list): List of start page numbers (1-indexed)
-        output_dir (str, optional): Directory to save output files
-
-    Returns:
-        list: List of created output file paths
-    """
-    splitter = PDFSplitter(verbose=True)
-    return splitter.split_by_pages(input_path, start_pages, output_dir)
-
-
-def split_pdf_simple(input_file, start_pages, output_dir=None):
-    """
-    Simplified function for use in other scripts.
-    Original function preserved for backward compatibility.
-
-    Args:
-        input_file (str): Path to input PDF
-        start_pages (str or list): Either "1,89" or [1, 89]
-        output_dir (str, optional): Output directory
-
-    Returns:
-        list: Created file paths
-    """
-    if isinstance(start_pages, str):
-        start_pages = parse_start_pages(start_pages)
-
-    return split_pdf(input_file, start_pages, output_dir)
-
-
-# Command line interface for standalone usage
-def main():
-    """Command line interface - preserved from original."""
-    if len(sys.argv) != 3:
-        print("Usage: python pdf_splitter.py <input_pdf> <start_pages>")
-        print("Example: python pdf_splitter.py document.pdf 1,89")
-        print("This will split a PDF into parts starting at pages 1 and 89")
-        sys.exit(1)
-
-    input_pdf = sys.argv[1]
-    start_pages_str = sys.argv[2]
-
-    try:
-        # Parse start pages
-        start_pages = parse_start_pages(start_pages_str)
-        print(f"Start pages: {start_pages}")
-
-        # Split the PDF using original function
-        output_files = split_pdf(input_pdf, start_pages)
-
-        print(f"\nSuccessfully created {len(output_files)} files:")
-        for file_path in output_files:
-            print(f"  {file_path}")
-
+        return splitter.choose_split_method()
+    except KeyboardInterrupt:
+        print("\n\n👋 PDF split cancelled by user.")
     except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
+        print(f"\n❌ An error occurred: {str(e)}")
 
 
+# Example usage
 if __name__ == "__main__":
-    main()
+    run_interactive_splitter()

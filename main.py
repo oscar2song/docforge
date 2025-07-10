@@ -28,8 +28,12 @@ def print_help():
     print("\n🔧 Command Line Usage:")
     print("  python main.py ocr -i input.pdf -o output.pdf")
     print("  python main.py optimize -i input.pdf -o output.pdf --type aggressive")
+    print("  python main.py merge -i input_folder -o merged.pdf --page-numbers")
+    print("  python main.py pdf-to-word -i input.pdf -o output.docx --method simple")
+    print("  python main.py split-pdf -i input.pdf -o output_folder --pages '1-5,10-15'")
     print("  python main.py batch-ocr -i input_folder -o output_folder")
     print("  python main.py batch-optimize -i input_folder -o output_folder --type scanned")
+    print("  python main.py batch-pdf-to-word -i input_folder -o output_folder --method ocr")
     print("  python main.py advanced-optimize -i input.pdf -o output.pdf")
     print("  python main.py analyze -i input.pdf --type ocr")
     print("\n🎯 Available Optimization Types:")
@@ -42,6 +46,13 @@ def print_help():
     print("  standard - Good balance (default)")
     print("  precise  - Best layout preservation")
     print("  text_only - Text without images")
+    print("\n📄 PDF to Word Conversion Methods:")
+    print("  simple - Fast text extraction (for native PDFs)")
+    print("  ocr    - OCR-based conversion (for scanned PDFs)")
+    print("\n✂️ PDF Split Types:")
+    print("  pages     - Split by page ranges or fixed page count")
+    print("  size      - Split by maximum file size")
+    print("  bookmarks - Split at bookmark boundaries")
     print("\n🔥 Interactive Mode:")
     print("  python main.py                    # Interactive menu")
     print("\n💡 Examples:")
@@ -50,6 +61,21 @@ def print_help():
     print()
     print("  # Aggressive optimization with custom quality")
     print("  python main.py optimize -i large.pdf -o small.pdf --type aggressive --quality 60")
+    print()
+    print("  # Merge PDFs with page numbers")
+    print("  python main.py merge -i 'file1.pdf,file2.pdf' -o merged.pdf --page-numbers")
+    print()
+    print("  # Convert PDF to Word using OCR")
+    print("  python main.py pdf-to-word -i document.pdf -o document.docx --method ocr")
+    print()
+    print("  # Split PDF by page ranges")
+    print("  python main.py split-pdf -i document.pdf -o splits/ --pages '1-10,20-30'")
+    print()
+    print("  # Split PDF by file size")
+    print("  python main.py split-pdf -i large.pdf -o splits/ --split-type size --max-size-mb 5")
+    print()
+    print("  # Batch convert PDFs to Word")
+    print("  python main.py batch-pdf-to-word -i ./pdfs -o ./word_docs --method simple")
     print()
     print("  # Batch optimize scanned PDFs")
     print("  python main.py batch-optimize -i ./scans -o ./optimized --type scanned")
@@ -82,14 +108,41 @@ Examples:
   # Merge specific files
   python main.py merge -i "file1.pdf,file2.pdf" -o merged.pdf --preserve-signatures
 
+  # Convert PDF to Word (simple method)
+  python main.py pdf-to-word -i document.pdf -o document.docx --method simple
+
+  # Convert PDF to Word (OCR method for scanned PDFs)
+  python main.py pdf-to-word -i scanned.pdf -o document.docx --method ocr
+
+  # Split PDF by page ranges
+  python main.py split-pdf -i document.pdf -o output/ --pages "1-5,10-15"
+
+  # Split PDF every 3 pages
+  python main.py split-pdf -i document.pdf -o output/ --pages-per-file 3
+
+  # Split PDF by file size
+  python main.py split-pdf -i large.pdf -o output/ --split-type size --max-size-mb 5
+
+  # Split PDF by bookmarks
+  python main.py split-pdf -i document.pdf -o output/ --split-type bookmarks
+
   # Batch optimize scanned PDFs
   python main.py batch-optimize -i ./input -o ./output --type scanned
+
+  # Batch convert PDFs to Word
+  python main.py batch-pdf-to-word -i ./pdfs -o ./word_docs --method ocr
 
   # Advanced interactive optimization
   python main.py advanced-optimize -i input.pdf -o output.pdf
 
   # Advanced interactive merge
   python main.py advanced-merge -i ./folder -o merged.pdf
+
+  # Advanced interactive PDF to Word conversion
+  python main.py advanced-pdf-to-word -i input.pdf -o output.docx
+
+  # Advanced interactive PDF splitting
+  python main.py advanced-split-pdf -i input.pdf -o output/
 
   # Analyze PDF for OCR
   python main.py analyze -i input.pdf --type ocr
@@ -100,10 +153,23 @@ Optimization Types:
 OCR Layout Modes:
   standard, precise, text_only
 
+PDF to Word Methods:
+  simple (fast text extraction), ocr (OCR-based for scanned PDFs)
+
+PDF Split Types:
+  pages (by page ranges/count), size (by file size), bookmarks (by bookmarks)
+
 Merge Options:
   --page-numbers (add page numbers)
   --no-page-numbers (merge without page numbers)
   --preserve-signatures (use signature-preserving method)
+
+New Commands:
+  pdf-to-word          Convert PDF to Word document
+  split-pdf            Split PDF into multiple files
+  batch-pdf-to-word    Batch convert PDFs to Word documents
+  advanced-pdf-to-word Advanced PDF to Word with full options
+  advanced-split-pdf   Advanced PDF splitting with full options
         """
     )
 

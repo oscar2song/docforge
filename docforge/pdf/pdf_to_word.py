@@ -62,7 +62,7 @@ except ImportError as e:
     print(f"Warning: PDF to Word conversion not available - missing {missing_lib}")
 
 
-class PDF2Word(BaseProcessor):
+class PDFToWordConverter(BaseProcessor):
     """
     DocForge PDF to Word Converter
 
@@ -86,7 +86,7 @@ class PDF2Word(BaseProcessor):
         if not self.has_dependencies:
             if verbose:
                 print(
-                    "⚠️  PDF2Word: Missing dependencies - install python-docx, PyPDF2, pdf2image, pytesseract, Pillow")
+                    "⚠️  PDFToWordConverter: Missing dependencies - install python-docx, PyPDF2, pdf2image, pytesseract, Pillow")
 
     def process(self, input_path: str, output_path: str, **kwargs) -> Dict[str, Any]:
         """
@@ -629,7 +629,7 @@ def pdf_to_word(pdf_path: str, word_path: str, preserve_layout: bool = True, dpi
     Returns:
         bool: True if successful
     """
-    converter = PDF2Word(verbose=True, dpi=dpi)
+    converter = PDFToWordConverter(verbose=True, dpi=dpi)
     result = converter.process(pdf_path, word_path,
                                preserve_layout=preserve_layout, dpi=dpi)
     return result.get('success', False)
