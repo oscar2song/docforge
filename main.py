@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+# main.py - Minimal update to show Rich banner while keeping all existing functionality
+
+# !/usr/bin/env python3
 """
 🔨 DocForge - Document Processing Toolkit
 Entry point for the application
@@ -22,7 +24,7 @@ except ImportError as e:
 
 
 def print_help():
-    """Print usage help."""
+    """Print usage help - keep your existing function."""
     print("\n📖 DocForge Usage:")
     print("=" * 30)
     print("\n🔧 Command Line Usage:")
@@ -36,6 +38,7 @@ def print_help():
     print("  python main.py batch-pdf-to-word -i input_folder -o output_folder --method ocr")
     print("  python main.py advanced-optimize -i input.pdf -o output.pdf")
     print("  python main.py analyze -i input.pdf --type ocr")
+    print("  python main.py test-rich  # Test the Rich CLI interface")
     print("\n🎯 Available Optimization Types:")
     print("  standard     - Balanced quality/size (recommended)")
     print("  aggressive   - Maximum compression")
@@ -84,9 +87,11 @@ def print_help():
 
 def main():
     """Main entry point for DocForge."""
-    print("🔨 DocForge - Document Processing Toolkit")
-    print("Forge perfect documents with precision and power")
-    print("=" * 50)
+    # Create CLI interface (with Rich UI if available)
+    cli = CLIInterface()
+
+    # Show banner (Rich if available, basic if not)
+    cli.show_banner()
 
     parser = argparse.ArgumentParser(
         description="DocForge Document Processing Toolkit",
@@ -147,6 +152,9 @@ Examples:
   # Analyze PDF for OCR
   python main.py analyze -i input.pdf --type ocr
 
+  # Test Rich CLI interface
+  python main.py test-rich
+
 Optimization Types:
   standard, aggressive, scanned, scale_only, high_quality
 
@@ -170,6 +178,7 @@ New Commands:
   batch-pdf-to-word    Batch convert PDFs to Word documents
   advanced-pdf-to-word Advanced PDF to Word with full options
   advanced-split-pdf   Advanced PDF splitting with full options
+  test-rich           Test the Rich CLI interface
         """
     )
 
@@ -184,9 +193,8 @@ New Commands:
     # Parse arguments
     if len(sys.argv) == 1:
         # No arguments - run interactive mode
-        print("🚀 Starting Interactive Mode...")
-        print("Use --help to see command line options")
-        cli = CLIInterface()
+        cli.print_message("Starting Interactive Mode...")
+        cli.print_message("Use --help to see command line options")
         cli.run_interactive()
         return
 
@@ -198,13 +206,11 @@ New Commands:
 
     if not args.command:
         # Interactive mode
-        print("🚀 Starting Interactive Mode...")
-        cli = CLIInterface()
+        cli.print_message("Starting Interactive Mode...")
         cli.run_interactive()
     else:
         # Command line mode
-        print(f"🔧 Executing: {args.command}")
-        cli = CLIInterface()
+        cli.print_message(f"Executing: {args.command}")
         cli.execute_command(args)
 
 

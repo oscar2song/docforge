@@ -13,6 +13,9 @@ pdf2docx>=0.5.6
 python-magic>=0.4.27
 ocrmypdf>=13.0.0
 
+#rich UI
+rich>=13.0.0
+
 # Future expansion dependencies
 # openpyxl>=3.0.0          # Excel processing
 # python-pptx>=0.6.0       # PowerPoint processing
