@@ -42,6 +42,11 @@ class CLIInterface:
         else:
             self.ui = None
 
+        if self.ui:
+            self.console = self.ui.console  # Add this line
+        else:
+            self.console = None  # Add this line for fallback
+
         self.processor = DocumentProcessor(verbose=True)
         self.validator = FileValidator()
         self.param_validator = ParameterValidator()
@@ -215,6 +220,10 @@ class CLIInterface:
         # Add other parsers as before...
         # (keeping the rest of your existing parsers)
 
+        # Add this to your setup_parsers method in CLIInterface
+        test_validation_parser = subparsers.add_parser('test-validation',
+                                                       help='Test enhanced validation system')
+
     def execute_command(self, args):
         """Execute command with comprehensive error handling."""
 
@@ -230,6 +239,8 @@ class CLIInterface:
             'batch-ocr': self.handle_batch_ocr,
             'test-rich': self.handle_test_rich,
             'test-errors': self.handle_test_errors,
+            # Add this to your command_map in execute_command method
+            'test-validation': self.handle_test_validation,
             # Add other commands...
         }
 
@@ -583,6 +594,53 @@ class CLIInterface:
         else:
             print("🚀 Starting Interactive Mode...")
             # Your existing interactive mode logic
+
+    def handle_test_validation(self, args):
+        """Test the enhanced validation system."""
+
+        if not self.ui:
+            self.print_message("Enhanced validation testing requires Rich interface", "error")
+            return
+
+        self.print_message("Testing enhanced validation system...")
+
+        # Test Parameter Validation
+        if self.console:  # Check if console is available
+            self.console.print(f"\n[bold cyan]Testing Parameter Validation:[/bold cyan]")
+        else:
+            print("\nTesting Parameter Validation:")
+
+        test_cases = [
+            ("language", "en", "Should auto-correct to 'eng'"),
+            ("language", "french", "Should auto-correct to 'fra'"),
+            ("quality", 150, "Should show validation error"),
+        ]
+
+        for param, value, description in test_cases:
+            if self.console:
+                self.console.print(f"\n[yellow]Test: {description}[/yellow]")
+            else:
+                print(f"\nTest: {description}")
+
+            try:
+                if param == "language":
+                    from ..core.validators import SmartParameterValidator
+                    result, suggestions = SmartParameterValidator.validate_and_suggest_language(value)
+                    if result != value:
+                        self.print_message(f"✨ Auto-corrected {param}: '{value}' → '{result}'", "success")
+                elif param == "quality":
+                    from ..core.validators import ParameterValidator
+                    ParameterValidator.validate_quality(value)
+
+            except ValidationError as e:
+                if self.ui:
+                    self.ui.display_error_details(e)
+                else:
+                    self.print_message(f"Validation Error: {e.message}", "error")
+            except Exception as e:
+                self.print_message(f"Test failed: {str(e)}", "warning")
+
+        self.print_message("Enhanced validation test completed!", "success")
 
 
 class BasicProgressContext:
