@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 from typing import Union, List, Optional, Tuple, Dict, Any
 from functools import wraps
+from typing import Union, List, Optional, Tuple, Dict, Any
 
 from .exceptions import (
     ValidationError, FileNotFoundError, InvalidFileFormatError,
@@ -24,6 +25,7 @@ class FileValidator:
     @staticmethod
     def validate_input_file(file_path: Union[str, Path],
                             expected_extensions: Optional[List[str]] = None) -> Path:
+        """Validate input file exists and has correct format."""
         """
         Validate input file exists and has correct format.
 
@@ -68,6 +70,7 @@ class FileValidator:
     @staticmethod
     def validate_output_path(output_path: Union[str, Path],
                              create_dirs: bool = True) -> Path:
+        """Validate output path and create directories if needed."""
         """
         Validate output path and create directories if needed.
 
@@ -103,6 +106,7 @@ class FileValidator:
     def validate_directory(dir_path: Union[str, Path],
                            must_exist: bool = True,
                            must_be_readable: bool = True) -> Path:
+        """Validate directory path."""
         """
         Validate directory path.
 
@@ -299,6 +303,7 @@ class SmartFileValidator(FileValidator):
 
     @staticmethod
     def validate_pdf_content(file_path: Union[str, Path]) -> Dict[str, Any]:
+        """Validate PDF file content and extract metadata."""
         """
         Validate PDF file content and extract metadata.
 
@@ -475,7 +480,9 @@ class SmartFileValidator(FileValidator):
             return True
 
     @staticmethod
-    def suggest_similar_files(file_path: str, extensions: List[str] = None) -> List[str]:
+    def suggest_similar_files(file_path: str,
+                              extensions: Optional[List[str]] = None) -> List[str]:
+        """Suggest similar files when specified file is not found."""
         """
         Suggest similar files when the specified file is not found.
 

@@ -17,6 +17,8 @@ from typing import List, Dict, Any, Optional
 import time
 import os
 from pathlib import Path
+from typing import List, Dict, Any, Optional
+from rich.console import Console
 
 # Import our error handling system
 from ..core.exceptions import DocForgeException, ProcessingResult
@@ -28,8 +30,16 @@ console = Console()
 class DocForgeUI:
     """Enhanced Rich UI manager with comprehensive error handling."""
 
-    def __init__(self):
-        self.console = console
+    def __init__(self) -> None:
+        self.console: Console = Console()
+
+    def print_success(self, message: str) -> None:
+        """Print success message."""
+        self.console.print(f"✅ [bold green]{message}[/bold green]")
+
+    def print_error(self, message: str) -> None:
+        """Print error message."""
+        self.console.print(f"❌ [bold red]Error:[/bold red] {message}")
 
     def print_banner(self):
         """Display DocForge banner."""
@@ -40,14 +50,6 @@ class DocForgeUI:
 ╚══════════════════════════════════════════════════════════════╝[/bold blue]"""
         self.console.print(Panel(banner.strip(), border_style="blue"))
 
-    def print_success(self, message: str):
-        """Print success message."""
-        self.console.print(f"✅ [bold green]{message}[/bold green]")
-
-    def print_error(self, message: str):
-        """Print error message."""
-        self.console.print(f"❌ [bold red]Error:[/bold red] {message}")
-
     def print_warning(self, message: str):
         """Print warning message."""
         self.console.print(f"⚠️  [bold yellow]Warning:[/bold yellow] {message}")
@@ -56,7 +58,7 @@ class DocForgeUI:
         """Print info message."""
         self.console.print(f"ℹ️  [bold blue]Info:[/bold blue] {message}")
 
-    def display_error_details(self, error: DocForgeException):
+    def display_error_details(self, error: 'DocForgeException') -> None:
         """Display comprehensive error information with suggestions."""
 
         # Error header
@@ -278,7 +280,9 @@ class DocForgeUI:
             console=self.console
         )
 
-    def display_results_table(self, results: List[Dict[str, Any]], title: str = "Processing Results"):
+    def display_results_table(self,
+                              results: List[Dict[str, Any]],
+                              title: str = "Processing Results") -> None:
         """Display processing results in a formatted table."""
         table = Table(title=title, box=box.ROUNDED)
         table.add_column("File", style="cyan", no_wrap=True)

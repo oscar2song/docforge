@@ -9,7 +9,7 @@ import sys
 import os
 import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 
 # Import Rich components
 try:
@@ -33,7 +33,11 @@ from ..core.processor import DocumentProcessor
 class CLIInterface:
     """Enhanced CLI Interface with comprehensive error handling."""
 
-    def __init__(self, use_rich: bool = True):
+    def __init__(self, use_rich: bool = True) -> None:
+        """Initialize CLI interface."""
+        self.use_rich: bool = use_rich and RICH_AVAILABLE
+        self.ui: Optional[DocForgeUI] = DocForgeUI() if self.use_rich else None
+        self.console: Optional[Console] = self.ui.console if self.ui else None
         """Initialize CLI interface with error handling."""
         self.use_rich = use_rich and RICH_AVAILABLE
 
@@ -51,7 +55,7 @@ class CLIInterface:
         self.validator = FileValidator()
         self.param_validator = ParameterValidator()
 
-    def print_message(self, message: str, msg_type: str = "info"):
+    def print_message(self, message: str, msg_type: str = "info") -> None:
         """Print message with Rich if available, otherwise use basic print."""
         if self.ui:
             if msg_type == "success":
@@ -224,7 +228,7 @@ class CLIInterface:
         test_validation_parser = subparsers.add_parser('test-validation',
                                                        help='Test enhanced validation system')
 
-    def execute_command(self, args):
+    def execute_command(self, args: argparse.Namespace) -> None:
         """Execute command with comprehensive error handling."""
 
         # Validate common arguments first
@@ -260,7 +264,7 @@ class CLIInterface:
             self.print_message(f"Unknown command: {args.command}", "error")
             sys.exit(1)
 
-    def handle_ocr(self, args) -> ProcessingResult:
+    def handle_ocr(self, args: argparse.Namespace) -> 'ProcessingResult':
         """Handle OCR command with comprehensive error handling."""
 
         def _ocr_operation():
@@ -595,7 +599,7 @@ class CLIInterface:
             print("🚀 Starting Interactive Mode...")
             # Your existing interactive mode logic
 
-    def handle_test_validation(self, args):
+    def handle_test_validation(self, args: argparse.Namespace) -> None:
         """Test the enhanced validation system."""
 
         if not self.ui:

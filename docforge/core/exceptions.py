@@ -8,14 +8,17 @@ from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 from pathlib import Path
 import os
+from typing import Optional, List, Dict, Any, Union
 
 
 class DocForgeException(Exception):
     """Base exception for all DocForge operations."""
 
-    def __init__(self, message: str, error_code: Optional[str] = None,
+    def __init__(self,
+                 message: str,
+                 error_code: Optional[str] = None,
                  context: Optional[Dict[str, Any]] = None,
-                 suggestions: Optional[List[str]] = None):
+                 suggestions: Optional[List[str]] = None) -> None:
         self.message = message
         self.error_code = error_code or self.__class__.__name__
         self.context = context or {}
@@ -36,7 +39,7 @@ class DocForgeException(Exception):
 class FileNotFoundError(DocForgeException):
     """Raised when input file cannot be found."""
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str) -> None:
         self.file_path = file_path
         message = f"File not found: {file_path}"
 
@@ -235,7 +238,11 @@ class DependencyError(DocForgeException):
 class ValidationError(DocForgeException):
     """Raised when input validation fails."""
 
-    def __init__(self, field: str, value: Any, expected: str, suggestions: Optional[List[str]] = None):
+    def __init__(self,
+                 field: str,
+                 value: Any,
+                 expected: str,
+                 suggestions: Optional[List[str]] = None) -> None:
         self.field = field
         self.value = value
         self.expected = expected
@@ -317,8 +324,8 @@ class ProcessingResult:
             **kwargs
         )
 
-# Example usage and integration helpers
-def safe_execute(operation_func, *args, **kwargs) -> ProcessingResult:
+
+def safe_execute(operation_func: callable, *args: Any, **kwargs: Any) -> 'ProcessingResult':
     """
     Safely execute an operation with comprehensive error handling.
 
