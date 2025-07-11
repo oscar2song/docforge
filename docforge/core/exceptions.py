@@ -10,6 +10,13 @@ from pathlib import Path
 import os
 from typing import Optional, List, Dict, Any, Union
 
+# ✨ ADD TYPE ALIASES HERE (module level)
+FilePath = Union[str, Path]
+OptionalStr = Optional[str]
+OptionalDict = Optional[Dict[str, Any]]
+ResultDict = Dict[str, Any]
+FileList = List[str]
+
 
 class DocForgeException(Exception):
     """Base exception for all DocForge operations."""
