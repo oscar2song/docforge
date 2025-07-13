@@ -643,6 +643,7 @@ def main():
 
     # Set up argument parser
     parser = argparse.ArgumentParser(
+        prog='docforge',
         description="DocForge - Professional Document Processing Toolkit with Performance Optimization",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
