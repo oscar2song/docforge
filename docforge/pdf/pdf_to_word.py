@@ -11,6 +11,7 @@ import tempfile
 import gc
 import time
 from typing import Optional, List, Dict, Any
+from docx import Document
 
 # Import existing DocForge base class
 try:
