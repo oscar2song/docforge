@@ -30,7 +30,7 @@ def test_imports():
         print(f"⚠️  CLI interface import failed: {e}")
 
     try:
-        import main
+        from docforge import main
         print("✅ Main module import successful")
     except ImportError as e:
         print(f"❌ Main module import failed: {e}")
@@ -45,7 +45,7 @@ def test_basic_initialization():
 
     try:
         # Test main CLI interface
-        import main
+        from docforge import main
         cli = main.EnhancedCLIInterface(use_rich=False)
         print("✅ CLI interface initialization successful")
 
@@ -72,7 +72,7 @@ def test_simple_commands():
     print("\n🎯 Testing simple commands...")
 
     try:
-        import main
+        from docforge import main
         cli = main.EnhancedCLIInterface(use_rich=False)
 
         # Create a mock args object
@@ -109,7 +109,7 @@ def test_file_operations():
     print("\n📁 Testing file operations...")
 
     try:
-        import main
+        from docforge import main
         cli = main.EnhancedCLIInterface(use_rich=False)
 
         # Create temporary PDF file
@@ -162,7 +162,7 @@ def test_enhanced_commands():
     print("\n🚀 Testing enhanced commands...")
 
     try:
-        import main
+        from docforge import main
         cli = main.EnhancedCLIInterface(use_rich=False)
 
         if not cli.performance_cli:

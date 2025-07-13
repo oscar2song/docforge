@@ -21,8 +21,8 @@ pytest tests/test_rich_interface.py -v
 pytest tests/test_exceptions.py -v
 
 # Test the Rich CLI interface
-python main.py test-validation
-python main.py test-errors
+docforge test-validation
+docforge test-errors
 🎯 Contribution Guidelines
 Code Quality Standards
 

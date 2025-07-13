@@ -647,12 +647,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py enhanced-ocr -i document.pdf -o output.pdf --memory-mapping
-  python main.py enhanced-batch-ocr -i pdf_folder/ -o output_folder/
-  python main.py ocr -i document.pdf -o output.pdf
-  python main.py batch-ocr -i pdf_folder/ -o output_folder/
-  python main.py test-rich
-  python main.py benchmark --test-files document.pdf
+  docforge enhanced-ocr -i document.pdf -o output.pdf --memory-mapping
+  docforge enhanced-batch-ocr -i pdf_folder/ -o output_folder/
+  docforge ocr -i document.pdf -o output.pdf
+  docforge batch-ocr -i pdf_folder/ -o output_folder/
+  docforge test-rich
+  docforge benchmark --test-files document.pdf
         """
     )
 
@@ -672,9 +672,9 @@ Examples:
         # No arguments - show help
         parser.print_help()
         print("\n💡 Quick start examples:")
-        print("  python main.py test-rich                          # Test the interface")
-        print("  python main.py ocr -i document.pdf -o output.pdf  # Basic OCR")
-        print("  python main.py --help-extended                    # Show all commands")
+        print("  docforge test-rich                          # Test the interface")
+        print("  docforge ocr -i document.pdf -o output.pdf  # Basic OCR")
+        print("  docforge --help-extended                    # Show all commands")
         return
 
     args = parser.parse_args()

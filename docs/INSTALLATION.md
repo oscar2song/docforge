@@ -30,7 +30,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 3. Install Dependencies
 bashpip install -r requirements.txt
 4. Verify Installation
-bashpython main.py test-rich
+bashdocforge test-rich
 🔧 Troubleshooting
 Common Issues
 "Tesseract not found"
