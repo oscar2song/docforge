@@ -1,5 +1,9 @@
 # DocForge 🔨
 
+[![PyPI version](https://badge.fury.io/py/docforge.svg)](https://badge.fury.io/py/docforge)
+[![Python versions](https://img.shields.io/pypi/pyversions/docforge.svg)](https://pypi.org/project/docforge/)
+[![Downloads](https://pepy.tech/badge/docforge)](https://pepy.tech/project/docforge)
+
 **Forge perfect documents from any format with precision, power, and simplicity.**
 
 DocForge is a comprehensive document processing toolkit built on proven implementations with a modern modular architecture. Born from real-world needs and battle-tested algorithms, DocForge transforms how you work with documents.
@@ -35,7 +39,10 @@ cd docforge
 pip install -e .
 ```
 
-### System Dependencies
+## Requirements
+
+- Python 3.7+
+- System dependencies:
 
 **Ubuntu/Debian:**
 ```bash
@@ -180,6 +187,12 @@ We welcome contributions! The modular architecture makes it easy to add new feat
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+## Links
+
+- [PyPI Package](https://pypi.org/project/docforge/)
+- [GitHub Repository](https://github.com/oscar2song/docforge)
+- [Issue Tracker](https://github.com/oscar2song/docforge/issues)
 
 ## 🏆 Acknowledgments
 

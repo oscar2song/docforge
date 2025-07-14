@@ -240,3 +240,5 @@ desktop.ini
 output/
 processed/
 cache/
+real_test/
+test_install/
